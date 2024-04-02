@@ -41,8 +41,6 @@ def build_tree(X, y):
         return Node(value=y[0])
 
     best_attribute, best_threshold = find_best_split(X, y)
-
-    # Handle the case when best_threshold is None
     if best_threshold is None:
         return Node(value=np.argmax(np.bincount(y)))
 
@@ -66,21 +64,16 @@ def predict(X, tree):
 
 def main():
     st.title("ID3 Decision Tree Classifier")
-
-    # Sidebar for uploading CSV file
     st.sidebar.title("Upload CSV")
     uploaded_file = st.sidebar.file_uploader("Upload your CSV file", type=["csv"])
 
     if uploaded_file is not None:
         data = np.genfromtxt(uploaded_file, delimiter=',', skip_header=1)
-        X = data[:, :-1]  # Features
-        y = data[:, -1]   # Labels
+        X = data[:, :-1]
+        y = data[:, -1]  
 
         tree = build_tree(X, y) 
-
         st.write("Decision Tree Built.")
-
-        # Prediction
         st.subheader("Make Predictions")
         input_data = st.text_input("Enter input data (comma-separated values):")
         if input_data:
