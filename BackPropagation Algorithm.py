@@ -1,54 +1,84 @@
 import streamlit as st
 import numpy as np
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
-def sigmoid_derivative(x):
-    return x * (1 - x)
-def backpropagation(X, y, epochs, lr):
-    input_layer_size = X.shape[1]
-    hidden_layer_size = 4
-    output_layer_size = 1
 
-    np.random.seed(42)
-    weights_input_hidden = np.random.rand(input_layer_size, hidden_layer_size)
-    weights_hidden_output = np.random.rand(hidden_layer_size, output_layer_size)
-    bias_hidden = np.random.rand(1, hidden_layer_size)
-    bias_output = np.random.rand(1, output_layer_size)
+class NeuralNetwork:
+    def __init__(self, input_size, hidden_size, output_size):
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.output_size = output_size
+        
+        self.weights_input_hidden = np.random.randn(input_size, hidden_size)
+        self.bias_hidden = np.random.randn(1, hidden_size)
+        self.weights_hidden_output = np.random.randn(hidden_size, output_size)
+        self.bias_output = np.random.randn(1, output_size)
+        
+    def sigmoid(self, x):
+        return 1 / (1 + np.exp(-x))
+    
+    def sigmoid_derivative(self, x):
+        return x * (1 - x)
+    
+    def forward_propagation(self, X):
+        self.hidden_layer_input = np.dot(X, self.weights_input_hidden) + self.bias_hidden
+        self.hidden_layer_output = self.sigmoid(self.hidden_layer_input)
 
-    for _ in range(epochs):
+        self.output_layer_input = np.dot(self.hidden_layer_output, self.weights_hidden_output) + self.bias_output
+        self.predicted_output = self.sigmoid(self.output_layer_input)
+        
+    def backward_propagation(self, X, y, learning_rate):
 
-        hidden_layer_input = np.dot(X, weights_input_hidden) + bias_hidden
-        hidden_layer_output = sigmoid(hidden_layer_input)
-        output_layer_input = np.dot(hidden_layer_output, weights_hidden_output) + bias_output
-        predicted_output = sigmoid(output_layer_input)
+        output_error = y - self.predicted_output
+        d_predicted_output = output_error * self.sigmoid_derivative(self.predicted_output)
+        
+        # Hidden layer
+        hidden_error = d_predicted_output.dot(self.weights_hidden_output.T)
+        d_hidden_layer = hidden_error * self.sigmoid_derivative(self.hidden_layer_output)
+        
+        # Update weights and biases
+        self.weights_hidden_output += self.hidden_layer_output.T.dot(d_predicted_output) * learning_rate
+        self.bias_output += np.sum(d_predicted_output, axis=0, keepdims=True) * learning_rate
+        self.weights_input_hidden += X.T.dot(d_hidden_layer) * learning_rate
+        self.bias_hidden += np.sum(d_hidden_layer, axis=0, keepdims=True) * learning_rate
+    
+    def train(self, X, y, epochs, learning_rate):
+        for epoch in range(epochs):
+            # Forward propagation
+            self.forward_propagation(X)
+            
+            # Backward propagation
+            self.backward_propagation(X, y, learning_rate)
+                
+    def predict(self, X):
+        self.forward_propagation(X)
+        return self.predicted_output
 
+def main():
+    st.title('Backpropagation Neural Network with Streamlit')
+    
+    # Sample dataset
+    X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    y = np.array([[0], [1], [1], [0]])
+    
+    # Neural network parameters
+    input_size = 2
+    hidden_size = st.slider('Hidden Layer Size', min_value=1, max_value=10, value=4)
+    output_size = 1
+    epochs = st.slider('Epochs', min_value=1000, max_value=10000, step=1000, value=5000)
+    learning_rate = st.slider('Learning Rate', min_value=0.01, max_value=1.0, value=0.1)
+    
+    # Initialize neural network
+    nn = NeuralNetwork(input_size=input_size, hidden_size=hidden_size, output_size=output_size)
+    
+    # Train the neural network
+    nn.train(X, y, epochs=epochs, learning_rate=learning_rate)
+    
+    # Test the neural network
+    test_data = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    predictions = nn.predict(test_data)
+    
+    # Display predictions
+    st.subheader('Predictions')
+    st.write(predictions)
 
-        error = y - predicted_output
-        d_predicted_output = error * sigmoid_derivative(predicted_output)
-        error_hidden_layer = d_predicted_output.dot(weights_hidden_output.T)
-        d_hidden_layer = error_hidden_layer * sigmoid_derivative(hidden_layer_output)
-
-        weights_hidden_output += hidden_layer_output.T.dot(d_predicted_output) * lr
-        bias_output += np.sum(d_predicted_output) * lr
-        weights_input_hidden += X.T.dot(d_hidden_layer) * lr
-        bias_hidden += np.sum(d_hidden_layer) * lr
-
-    return weights_input_hidden, weights_hidden_output, bias_hidden, bias_output
-
-st.title('Backpropagation Algorithm Demonstration')
-X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-y = np.array([[0], [1], [1], [0]])
-
-
-epochs = st.sidebar.slider('Epochs', min_value=100, max_value=10000, value=1000)
-learning_rate = st.sidebar.slider('Learning Rate', min_value=0.01, max_value=1.0, value=0.1)
-
-weights_input_hidden, weights_hidden_output, bias_hidden, bias_output = backpropagation(X, y, epochs, learning_rate)
-
-st.subheader('Trained Model Parameters')
-st.write('Weights (Input to Hidden Layer):')
-st.write(weights_input_hidden)
-st.write('Weights (Hidden to Output Layer):')
-st.write(weights_hidden_output)
-st.write('Bias (Hidden Layer):', bias_hidden)
-st.write('Bias (Output Layer):', bias_output)
+if __name__ == "__main__":
+    main()
