@@ -1,99 +1,79 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 # Load data
-def load_data(file_path):
-    data = pd.read_csv(file_path)
+@st.cache_data
+def load_data(dataset_file):
+    data = pd.read_csv(dataset_file)
     return data
 
-# Normalize data
-def normalize_data(data):
-    numeric_data = data.select_dtypes(include=[np.number])
-    normalized_data = (numeric_data - numeric_data.min()) / (numeric_data.max() - numeric_data.min())
-    return normalized_data
+# Simulate symptoms based on confirmed cases
+def simulate_symptoms(data):
+    # Assuming a simple rule: If confirmed cases > 0, then fever and cough are present
+    data['Fever'] = data['Confirmed'].apply(lambda x: 'Yes' if x > 0 else 'No')
+    data['Cough'] = data['Confirmed'].apply(lambda x: 'Yes' if x > 0 else 'No')
+    # Assuming Fatigue and Breathing Difficulty are random
+    data['Fatigue'] = ['Yes' if i % 2 == 0 else 'No' for i in range(len(data))]
+    data['Breathing Difficulty'] = ['Yes' if i % 3 == 0 else 'No' for i in range(len(data))]
+    return data
 
-# Initialize cluster centroids
-def initialize_centroids(data, num_clusters):
-    indices = np.random.choice(data.shape[0], size=num_clusters, replace=False)
-    centroids = data[indices]
-    return centroids
-
-# E-step: Assign each data point to the nearest centroid
-def assign_clusters(data, centroids):
-    distances = np.sqrt(((data - centroids[:, np.newaxis])**2).sum(axis=2))
-    return np.argmin(distances, axis=0)
-
-# M-step: Update centroids based on cluster assignments
-def update_centroids(data, clusters, num_clusters):
-    centroids = np.zeros((num_clusters, data.shape[1]))
-    for i in range(num_clusters):
-        centroids[i] = data[clusters == i].mean(axis=0)
-    return centroids
-
-# Expectation-Maximization (EM) algorithm
-def em_algorithm(data, num_clusters, max_iterations=100):
-    centroids = initialize_centroids(data, num_clusters)
-    for _ in range(max_iterations):
-        clusters = assign_clusters(data, centroids)
-        new_centroids = update_centroids(data, clusters, num_clusters)
-        if np.allclose(centroids, new_centroids):
-            break
-        centroids = new_centroids
-    return clusters
-
-# K-means algorithm
-def kmeans_algorithm(data, num_clusters, max_iterations=100):
-    centroids = initialize_centroids(data, num_clusters)
-    for _ in range(max_iterations):
-        clusters = assign_clusters(data, centroids)
-        new_centroids = np.array([data[clusters == i].mean(axis=0) for i in range(num_clusters)])
-        if np.allclose(centroids, new_centroids):
-            break
-        centroids = new_centroids
-    return clusters
-
-# Plot clusters
-def plot_clusters(data, clusters, title):
-    fig, ax = plt.subplots(figsize=(8, 6))
-    sns.scatterplot(data=data, x=data.columns[0], y=data.columns[1], hue=clusters, palette='viridis', legend='full', ax=ax)
-    ax.set_title(title)
-    st.pyplot(fig)
+# Calculate probabilities
+def calculate_probabilities(data, symptoms, test_result):
+    total_cases = len(data)
+    symptomatic_cases = len(data[(data['Fever'] == symptoms['Fever']) & 
+                                 (data['Cough'] == symptoms['Cough']) & 
+                                 (data['Fatigue'] == symptoms['Fatigue']) &
+                                 (data['Breathing Difficulty'] == symptoms['Breathing Difficulty'])])
+    positive_test_cases = len(data[(data['Confirmed'] > 0)])
+    
+    # Calculate probabilities
+    p_symptomatic_given_positive = len(data[(data['Confirmed'] > 0) & 
+                                            (data['Fever'] == symptoms['Fever']) & 
+                                            (data['Cough'] == symptoms['Cough']) & 
+                                            (data['Fatigue'] == symptoms['Fatigue']) &
+                                            (data['Breathing Difficulty'] == symptoms['Breathing Difficulty'])]) / positive_test_cases
+    
+    p_positive = positive_test_cases / total_cases
+    p_symptomatic = symptomatic_cases / total_cases
+    
+    # Bayes' Theorem
+    p_positive_given_symptomatic = (p_symptomatic_given_positive * p_positive) / p_symptomatic
+    
+    return p_positive_given_symptomatic
 
 # Streamlit web app
 def main():
-    st.title("Clustering Comparison: EM vs k-Means")
+    st.title("COVID-19 Diagnosis using Bayesian Network")
 
-    # Upload dataset
-    uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+    # Ask for dataset file
+    dataset_file = st.file_uploader("Upload dataset file", type=["csv"])
 
-    if uploaded_file is not None:
+    if dataset_file is not None:
         # Load data
-        data = load_data(uploaded_file)
+        data = load_data(dataset_file)
 
-        # Display data
+        # Simulate symptoms
+        data = simulate_symptoms(data)
+
+        # Show the dataset
         st.subheader("Dataset")
         st.write(data)
 
-        # Check if dataset has at least 2 columns
-        if len(data.columns) >= 2:
-            # Normalize data
-            normalized_data = normalize_data(data.iloc[:, :2])
+        # Inputs
+        st.sidebar.title("Enter Symptoms")
+        fever = st.sidebar.radio("Fever", ['Yes', 'No'])
+        cough = st.sidebar.radio("Cough", ['Yes', 'No'])
+        fatigue = st.sidebar.radio("Fatigue", ['Yes', 'No'])
+        breathing_difficulty = st.sidebar.radio("Breathing Difficulty", ['Yes', 'No'])
 
-            # Select number of clusters
-            num_clusters = st.sidebar.slider("Select Number of Clusters", min_value=2, max_value=10, value=3)
+        # Predict
+        symptoms = {'Fever': fever, 'Cough': cough, 'Fatigue': fatigue, 'Breathing Difficulty': breathing_difficulty}
+        test_result = 'Positive'
+        probability = calculate_probabilities(data, symptoms, test_result)
 
-            # Clustering using EM algorithm
-            em_labels = em_algorithm(normalized_data.values, num_clusters)
-            plot_clusters(data.iloc[:, :2], em_labels, "EM Algorithm Clustering")
-
-            # Clustering using k-means algorithm
-            kmeans_labels = kmeans_algorithm(normalized_data.values, num_clusters)
-            plot_clusters(data.iloc[:, :2], kmeans_labels, "k-Means Algorithm Clustering")
-        else:
-            st.error("Please ensure that your dataset has at least 2 columns.")
+        # Show prediction
+        st.subheader("Probability of Positive Test Result given Symptoms")
+        st.write(probability)
 
 if __name__ == "__main__":
     main()
