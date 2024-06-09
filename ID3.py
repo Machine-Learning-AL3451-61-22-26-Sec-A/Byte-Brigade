@@ -63,6 +63,7 @@ def predict(X, tree):
     return [predict_sample(x, tree) for x in X]
 
 def main():
+    st.title("BYTES BRIGADE")
     st.title("ID3 Decision Tree Classifier")
     st.sidebar.title("Upload CSV")
     uploaded_file = st.sidebar.file_uploader("Upload your CSV file", type=["csv"])
