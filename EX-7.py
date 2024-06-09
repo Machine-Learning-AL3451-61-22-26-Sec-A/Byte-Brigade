@@ -64,6 +64,7 @@ def plot_clusters(data, clusters, title):
 
 # Streamlit web app
 def main():
+    st.title("BYTES BRIGADE")
     st.title("Clustering Comparison: EM vs k-Means")
 
     # Upload dataset
