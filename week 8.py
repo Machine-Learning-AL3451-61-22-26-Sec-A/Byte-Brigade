@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 def main():
+    st.title("BYTES BRIGADE")
     st.title("K-Nearest Neighbors Classifier on Iris Dataset")
     
     # Load Iris dataset
