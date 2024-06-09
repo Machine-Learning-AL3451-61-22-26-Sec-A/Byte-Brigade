@@ -36,6 +36,7 @@ def locally_weighted_regression(x0, X, Y, tau):
     return y0
 
 def main():
+    st.title("BYTES BRIGADE")
     st.title("Locally Weighted Regression")
     
     # Generate synthetic dataset
