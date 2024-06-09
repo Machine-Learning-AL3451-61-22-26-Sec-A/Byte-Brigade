@@ -38,6 +38,7 @@ y = y / 100  # max test score is 100
 # Initialize neural network
 NN = Neural_Network()
 # Streamlit interface
+st.title("BYTES BRIGADES")
 st.title("Simple Neural Network Example")
 if st.button("Train Neural Network"):
     # Train the neural network
