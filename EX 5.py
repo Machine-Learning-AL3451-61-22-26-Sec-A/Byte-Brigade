@@ -1,33 +1,101 @@
+import streamlit as st
 import pandas as pd
-msg = pd.read_csv('document.csv', names=['message', 'label'])
-print("Total Instances of Dataset: ", msg.shape[0])
-msg['labelnum'] = msg.label.map({'pos': 1, 'neg': 0})
-
-X = msg.message
-y = msg.labelnum
+from sklearn.preprocessing import LabelEncoder
+from sklearn.naive_bayes import GaussianNB
 from sklearn.model_selection import train_test_split
-Xtrain, Xtest, ytrain, ytest = train_test_split(X, y)
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics import accuracy_score
 
-count_v = CountVectorizer()
-Xtrain_dm = count_v.fit_transform(Xtrain)
-Xtest_dm = count_v.transform(Xtest)
+def load_data():
+    data = pd.read_csv('tennisdata.csv')
+    return data
 
-df = pd.DataFrame(Xtrain_dm.toarray(),columns=count_v.get_feature_names())
-print(df[0:5])
+def preprocess_data(data):
+    # Print column names to debug
+    st.write("Columns in the dataset:", data.columns.tolist())
+    
+    # Check for correct column names
+    required_columns = ['Outlook', 'Temperature', 'Humidity', 'Windy', 'PlayTennis']
+    for column in required_columns:
+        if column not in data.columns:
+            raise KeyError(f"Column '{column}' is missing from the dataset")
+    
+    X = data.iloc[:, :-1]
+    y = data.iloc[:, -1]
+    
+    le_outlook = LabelEncoder()
+    X['Outlook'] = le_outlook.fit_transform(X['Outlook'])
+    
+    le_temperature = LabelEncoder()
+    X['Temperature'] = le_temperature.fit_transform(X['Temperature'])
+    
+    le_humidity = LabelEncoder()
+    X['Humidity'] = le_humidity.fit_transform(X['Humidity'])
+    
+    le_windy = LabelEncoder()
+    X['Windy'] = le_windy.fit_transform(X['Windy'])
+    
+    le_play_tennis = LabelEncoder()
+    y = le_play_tennis.fit_transform(y)
+    
+    return X, y
 
-from sklearn.naive_bayes import MultinomialNB
-clf = MultinomialNB()
-clf.fit(Xtrain_dm, ytrain)
-pred = clf.predict(Xtest_dm)
+def train_model(X_train, y_train):
+    classifier = GaussianNB()
+    classifier.fit(X_train, y_train)
+    return classifier
 
-for doc, p in zip(Xtrain, pred):
-    p = 'pos' if p == 1 else 'neg'
-    print("%s -> %s" % (doc, p))
+def main():
+    st.title("BYTES BRIGADES")
+    st.title("Play Tennis Predictor")
+    
+    # Load data
+    data = load_data()
+    st.subheader("Dataset")
+    st.write(data.head())
+    
+    # Preprocess data
+    try:
+        X, y = preprocess_data(data)
+        st.subheader("Processed Data")
+        st.write(X.head())
+        st.write("Labels:", y)
+    except KeyError as e:
+        st.error(f"Error: {e}")
+        return
+    
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20)
+    
+    # Train model
+    classifier = train_model(X_train, y_train)
+    
+    # Evaluate model
+    y_pred = classifier.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    st.subheader("Model Performance")
+    st.write("Accuracy: {:.2f}%".format(accuracy * 100))
+    
+    st.subheader("Make a Prediction")
+    outlook = st.selectbox("Outlook", ["Sunny", "Overcast", "Rainy"])
+    temperature = st.selectbox("Temperature", ["Hot", "Mild", "Cool"])
+    humidity = st.selectbox("Humidity", ["High", "Normal"])
+    windy = st.selectbox("Windy", ["False", "True"])
+    
+    if st.button("Predict"):
+        le_outlook = LabelEncoder().fit(["Sunny", "Overcast", "Rainy"])
+        le_temperature = LabelEncoder().fit(["Hot", "Mild", "Cool"])
+        le_humidity = LabelEncoder().fit(["High", "Normal"])
+        le_windy = LabelEncoder().fit(["False", "True"])
+        
+        input_data = [[
+            le_outlook.transform([outlook])[0],
+            le_temperature.transform([temperature])[0],
+            le_humidity.transform([humidity])[0],
+            le_windy.transform([windy])[0]
+        ]]
+        
+        prediction = classifier.predict(input_data)
+        play_tennis = "Yes" if prediction[0] == 1 else "No"
+        st.write(f"The model predicts: Play Tennis = {play_tennis}")
 
-from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score
-print('Accuracy Metrics: \n')
-print('Accuracy: ', accuracy_score(ytest, pred))
-print('Recall: ', recall_score(ytest, pred))
-print('Precision: ', precision_score(ytest, pred))
-print('Confusion Matrix: \n', confusion_matrix(ytest, pred))
+if __name__ == "__main__":
