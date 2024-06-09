@@ -1,79 +1,74 @@
 import streamlit as st
 import pandas as pd
+from pgmpy.models import BayesianModel
+from pgmpy.estimators import MaximumLikelihoodEstimator
+from pgmpy.inference import VariableElimination
 
-# Load data
-@st.cache_data
-def load_data(dataset_file):
-    data = pd.read_csv(dataset_file)
+def load_data():
+    return pd.read_csv("coronadata.csv")
+
+def preprocess_data(data):
+    # Drop any rows with missing values
+    data.dropna(inplace=True)
     return data
 
-# Simulate symptoms based on confirmed cases
-def simulate_symptoms(data):
-    # Assuming a simple rule: If confirmed cases > 0, then fever and cough are present
-    data['Fever'] = data['Confirmed'].apply(lambda x: 'Yes' if x > 0 else 'No')
-    data['Cough'] = data['Confirmed'].apply(lambda x: 'Yes' if x > 0 else 'No')
-    # Assuming Fatigue and Breathing Difficulty are random
-    data['Fatigue'] = ['Yes' if i % 2 == 0 else 'No' for i in range(len(data))]
-    data['Breathing Difficulty'] = ['Yes' if i % 3 == 0 else 'No' for i in range(len(data))]
-    return data
+def train_model(data):
+    model = BayesianModel([
+        ('Fever', 'CORONA Diagnosis'),
+        ('Cough', 'CORONA Diagnosis'),
+        ('Shortness of Breath', 'CORONA Diagnosis'),
+        ('Fatigue', 'CORONA Diagnosis'),
+        ('Body Aches', 'CORONA Diagnosis'),
+        ('Loss of Taste/Smell', 'CORONA Diagnosis')
+    ])
+    model.fit(data, estimator=MaximumLikelihoodEstimator)
+    return model
 
-# Calculate probabilities
-def calculate_probabilities(data, symptoms, test_result):
-    total_cases = len(data)
-    symptomatic_cases = len(data[(data['Fever'] == symptoms['Fever']) & 
-                                 (data['Cough'] == symptoms['Cough']) & 
-                                 (data['Fatigue'] == symptoms['Fatigue']) &
-                                 (data['Breathing Difficulty'] == symptoms['Breathing Difficulty'])])
-    positive_test_cases = len(data[(data['Confirmed'] > 0)])
-    
-    # Calculate probabilities
-    p_symptomatic_given_positive = len(data[(data['Confirmed'] > 0) & 
-                                            (data['Fever'] == symptoms['Fever']) & 
-                                            (data['Cough'] == symptoms['Cough']) & 
-                                            (data['Fatigue'] == symptoms['Fatigue']) &
-                                            (data['Breathing Difficulty'] == symptoms['Breathing Difficulty'])]) / positive_test_cases
-    
-    p_positive = positive_test_cases / total_cases
-    p_symptomatic = symptomatic_cases / total_cases
-    
-    # Bayes' Theorem
-    p_positive_given_symptomatic = (p_symptomatic_given_positive * p_positive) / p_symptomatic
-    
-    return p_positive_given_symptomatic
-
-# Streamlit web app
 def main():
-    st.title("COVID-19 Diagnosis using Bayesian Network")
-
-    # Ask for dataset file
-    dataset_file = st.file_uploader("Upload dataset file", type=["csv"])
-
-    if dataset_file is not None:
-        # Load data
-        data = load_data(dataset_file)
-
-        # Simulate symptoms
-        data = simulate_symptoms(data)
-
-        # Show the dataset
-        st.subheader("Dataset")
-        st.write(data)
-
-        # Inputs
-        st.sidebar.title("Enter Symptoms")
-        fever = st.sidebar.radio("Fever", ['Yes', 'No'])
-        cough = st.sidebar.radio("Cough", ['Yes', 'No'])
-        fatigue = st.sidebar.radio("Fatigue", ['Yes', 'No'])
-        breathing_difficulty = st.sidebar.radio("Breathing Difficulty", ['Yes', 'No'])
-
-        # Predict
-        symptoms = {'Fever': fever, 'Cough': cough, 'Fatigue': fatigue, 'Breathing Difficulty': breathing_difficulty}
-        test_result = 'Positive'
-        probability = calculate_probabilities(data, symptoms, test_result)
-
-        # Show prediction
-        st.subheader("Probability of Positive Test Result given Symptoms")
-        st.write(probability)
+    st.tile("BYTES BRIGADE")
+    st.title("CORONA Infection Diagnosis")
+    
+    # Load data
+    data = load_data()
+    st.subheader("Dataset")
+    st.write(data)
+    
+    # Preprocess data
+    data = preprocess_data(data)
+    
+    # Train model
+    model = train_model(data)
+    
+    # User input for symptoms
+    st.subheader("Enter Symptoms")
+    fever = st.checkbox("Fever")
+    cough = st.checkbox("Cough")
+    breathlessness = st.checkbox("Shortness of Breath")
+    fatigue = st.checkbox("Fatigue")
+    body_aches = st.checkbox("Body Aches")
+    loss_of_taste_smell = st.checkbox("Loss of Taste/Smell")
+    
+    # Collect evidence
+    evidence = {
+        "Fever": 1 if fever else 0,
+        "Cough": 1 if cough else 0,
+        "Shortness of Breath": 1 if breathlessness else 0,
+        "Fatigue": 1 if fatigue else 0,
+        "Body Aches": 1 if body_aches else 0,
+        "Loss of Taste/Smell": 1 if loss_of_taste_smell else 0,
+    }
+    
+    # Perform inference
+    infer = VariableElimination(model)
+    probability = infer.map_query(variables=['CORONA Diagnosis'], evidence=evidence)
+    probability_corona = probability['CORONA Diagnosis']
+    
+    # Display diagnosis
+    st.subheader("Diagnosis")
+    if probability_corona == 'Positive':
+        st.write("Based on the symptoms entered, there is a high probability of CORONA infection.")
+    else:
+        st.write("Based on the symptoms entered, CORONA infection is unlikely.")
 
 if __name__ == "__main__":
     main()
