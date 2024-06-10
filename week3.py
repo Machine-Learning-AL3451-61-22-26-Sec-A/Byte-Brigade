@@ -53,6 +53,7 @@ class NeuralNetwork:
         return self.predicted_output
 
 def main():
+    st.title("BYTES BRIGADE")
     st.title('Backpropagation Neural Network with Streamlit')
     
     # Sample dataset
