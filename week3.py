@@ -80,24 +80,7 @@ def main():
     st.subheader('Predictions')
     st.write(predictions)
 
-    st.markdown("""
-    <style>
-    .footer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: white;
-        color: black;
-        text-align: center;
-        padding: 10px;
-        font-size: 20px;
-    }
-    </style>
-    <div class="footer">
-        &copy; BYTES BRIGADE
-    </div>
-""", unsafe_allow_html=True)
+    
 
 if __name__ == "__main__":
     main()
