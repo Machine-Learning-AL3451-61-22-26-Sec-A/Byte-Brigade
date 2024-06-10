@@ -99,3 +99,4 @@ def main():
         st.write(f"The model predicts: Play Tennis = {play_tennis}")
 
 if __name__ == "__main__":
+    main()
